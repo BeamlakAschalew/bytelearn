@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -13,11 +12,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
-    // Dummy stats
-    const topicsPersonalized = 5;
-    const lastActivity = '2 hours ago';
-
+export default function Dashboard({ personalizationCount, lastActivity }: { personalizationCount: number; lastActivity: string }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
@@ -58,14 +53,14 @@ export default function Dashboard() {
                     </CardContent>
                 </Card>
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Topics Personalized</CardTitle>
                             <Lightbulb className="text-muted-foreground h-4 w-4" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{topicsPersonalized}</div>
+                            <div className="text-2xl font-bold">{personalizationCount}</div>
                             <p className="text-muted-foreground text-xs">Total paths generated</p>
                         </CardContent>
                     </Card>
@@ -79,12 +74,12 @@ export default function Dashboard() {
                             <p className="text-muted-foreground text-xs">Your recent interaction</p>
                         </CardContent>
                     </Card>
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border md:row-span-2 md:aspect-auto">
+                    {/* <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border md:row-span-2 md:aspect-auto">
                         <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
                         <div className="absolute inset-0 flex items-center justify-center p-6">
                             <p className="text-muted-foreground text-center">Future content overview can go here.</p>
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </AppLayout>

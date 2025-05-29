@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PersonalizationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -8,17 +10,17 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('personalize', function () {
         return Inertia::render('personalize');
     })->name('personalize');
 
-    Route::post('personalize', function () {
-        return redirect()->route('ai.result', ['uid' => 'sample-uid']);
-    })->name('personalize.store');
+    Route::post('personalize', [PersonalizationController::class, 'store'])->name('personalize.store');
+
+    // Route::post('personalize', function () {
+    //     return redirect()->route('ai.result', ['uid' => 'sample-uid']);
+    // })->name('personalize.store');
 
     Route::get('share/{uid}', function ($uid) {
         return Inertia::render('ai-result', ['uid' => $uid, 'content' => 'AI generated content for '.$uid, 'notes' => '']);

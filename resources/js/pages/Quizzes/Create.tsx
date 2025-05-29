@@ -18,6 +18,11 @@ interface FormData {
     number_of_questions: number | string;
 }
 
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Dashboard', href: route('dashboard') },
+    { title: 'Create quiz', href: route('quizzes.create') },
+];
+
 export default function CreateQuiz({ auth, errors: backendErrors }: CreateQuizProps) {
     const { data, setData, post, processing, errors, reset } = useForm({
         title: '',
@@ -38,7 +43,7 @@ export default function CreateQuiz({ auth, errors: backendErrors }: CreateQuizPr
     };
 
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create Quiz" />
 
             <div className="py-12">
@@ -95,7 +100,7 @@ export default function CreateQuiz({ auth, errors: backendErrors }: CreateQuizPr
                                 </div>
                             </CardContent>
                             <CardFooter>
-                                <Button type="submit" disabled={processing}>
+                                <Button type="submit" disabled={processing} className="mt-4">
                                     {processing ? 'Generating Quiz...' : 'Create Quiz'}
                                 </Button>
                             </CardFooter>

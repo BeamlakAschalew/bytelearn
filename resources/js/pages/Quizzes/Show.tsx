@@ -86,7 +86,7 @@ export default function ShowQuiz({ auth, quiz, errors: backendErrors }: ShowQuiz
                                     </p>
                                 )}
                             </CardContent>
-                            <CardFooter className="flex justify-between">
+                            <CardFooter className="flex justify-between mt-4">
                                 {currentQuestionIndex > 0 && (
                                     <Button type="button" variant="outline" onClick={() => setCurrentQuestionIndex(currentQuestionIndex - 1)}>
                                         Previous

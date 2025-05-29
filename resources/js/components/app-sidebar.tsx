@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BotIcon, LayoutGrid, Lightbulb, ListChecks } from 'lucide-react';
+import { BotIcon, ClipboardList, LayoutGrid, Lightbulb, ListChecks } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -27,6 +27,11 @@ const mainNavItems: NavItem[] = [
         title: 'Playground',
         href: '/playground',
         icon: BotIcon,
+    },
+    {
+        title: 'Quiz',
+        href: route('quizzes.create'),
+        icon: ClipboardList,
     },
 ];
 

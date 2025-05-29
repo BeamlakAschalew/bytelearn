@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PersonalizationController;
+use App\Http\Controllers\QuizController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -42,6 +43,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('playground', function () {
         return Inertia::render('playground', ['response' => 'Gemini response to your prompt.']);
     })->name('playground.submit');
+
+    // Quiz Routes
+    Route::get('/quizzes/create', [QuizController::class, 'create'])->name('quizzes.create');
+    Route::post('/quizzes', [QuizController::class, 'store'])->name('quizzes.store');
+    Route::get('/quizzes/{quiz}', [QuizController::class, 'show'])->name('quizzes.show');
+    Route::post('/quizzes/{quiz}/submit', [QuizController::class, 'submit'])->name('quizzes.submit');
 });
 
 require __DIR__.'/settings.php';

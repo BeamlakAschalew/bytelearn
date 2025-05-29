@@ -11,7 +11,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BotIcon, LayoutGrid, Lightbulb, ListChecks, Menu, Search } from 'lucide-react'; // Added icons
+import { BotIcon, ClipboardList, LayoutGrid, Lightbulb, ListChecks, Menu, Search } from 'lucide-react'; // Added ClipboardList
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
@@ -35,6 +35,11 @@ const mainNavItems: NavItem[] = [
         title: 'Playground',
         href: '/playground', // route('playground')
         icon: BotIcon,
+    },
+    {
+        title: 'Quiz',
+        href: route('quizzes.create'),
+        icon: ClipboardList,
     },
 ];
 

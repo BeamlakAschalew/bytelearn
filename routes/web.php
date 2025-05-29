@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmployerController;
 use App\Http\Controllers\PersonalizationController;
 use App\Http\Controllers\QuizController;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +50,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/quizzes', [QuizController::class, 'store'])->name('quizzes.store');
     Route::get('/quizzes/{quiz}', [QuizController::class, 'show'])->name('quizzes.show');
     Route::post('/quizzes/{quiz}/submit', [QuizController::class, 'submit'])->name('quizzes.submit');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/employer/search', [EmployerController::class, 'search'])->name('employer.search');
 });
 
 require __DIR__.'/settings.php';

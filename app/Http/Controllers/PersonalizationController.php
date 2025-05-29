@@ -36,7 +36,7 @@ class PersonalizationController extends Controller
         $validated = $request->validated();
 
         $prompt = 'Explain in full depth about '.$validated['topic'].
-                  ' at a '.$validated['learning_level'].' level.';
+                  ' at a '.$validated['learning_level'].' level. Attach any relevant examples or analogies to help understanding. Attach any resources like blogs, articles, or videos that can help the user understand the topic better.';
         if (! empty($validated['note'])) {
             $prompt .= ' Note: '.$validated['note'];
         }

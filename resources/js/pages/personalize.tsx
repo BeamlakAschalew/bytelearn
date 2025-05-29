@@ -7,13 +7,53 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github-dark.css'; // Or your preferred theme
 import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: route('dashboard') },
     { title: 'AI Personalization', href: route('personalize') },
 ];
+
+// Custom component for rendering code blocks with highlighting
+const CustomCodeRenderer = ({ node, inline, className, children, ...props }: any) => {
+    const codeRef = useRef<HTMLElement>(null);
+    const match = /language-(\w+)/.exec(className || '');
+    const language = match?.[1];
+    const codeContent = String(children).replace(/\n$/, ''); // Process children once
+
+    useEffect(() => {
+        if (codeRef.current && !inline) {
+            // Ensure the element is clean for highlight.js
+            codeRef.current.textContent = codeContent;
+            delete (codeRef.current as HTMLElement).dataset.highlighted;
+            try {
+                hljs.highlightElement(codeRef.current);
+            } catch (e) {
+                console.error('Error during highlighting:', e);
+            }
+        }
+    }, [codeContent, inline, language]); // Depend on processed codeContent
+
+    if (inline) {
+        return (
+            <code className={className} {...props}>
+                {children}
+            </code>
+        );
+    }
+
+    // For block code, ReactMarkdown wraps <code> in <pre>. We apply ref to <code>.
+    return (
+        <code ref={codeRef} className={language ? `language-${language}` : ''} {...props}>
+            {children}
+        </code>
+    );
+};
 
 export default function PersonalizeForm() {
     const { errors: pageErrors } = usePage().props;
@@ -98,7 +138,17 @@ export default function PersonalizeForm() {
                                         <p className="text-muted-foreground ml-2">Generating...</p>
                                     </div>
                                 )}
-                                <pre className="text-sm whitespace-pre-wrap">{responseContent}</pre>
+                                <div className="prose dark:prose-invert max-w-none">
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            pre: (preProps) => <pre className="text-sm whitespace-pre-wrap" {...preProps} />,
+                                            code: CustomCodeRenderer,
+                                        }}
+                                    >
+                                        {responseContent}
+                                    </ReactMarkdown>
+                                </div>
                                 {isStreaming && responseContent && <LoaderCircle className="text-primary mt-2 h-4 w-4 animate-spin" />}
                             </CardContent>
                         </Card>

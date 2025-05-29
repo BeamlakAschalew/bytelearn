@@ -1,8 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCountUp } from '@/hooks/useCountUp';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
-import { CheckCircle, XCircle } from 'lucide-react'; // Example icons
+import { SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { CheckCircle, Flame, Star, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import ReactConfetti from 'react-confetti'; // Renamed import for clarity
 
 interface Question {
     question: string;
@@ -18,32 +22,106 @@ interface QuizData {
 }
 
 interface ResultsProps {
-    auth: any; // Adjust according to your auth prop structure
     quiz: QuizData;
     score: number;
+    correctAnswers: number;
     totalQuestions: number;
-    experienceGained: number;
+    experiencePoints: number;
     userAnswers: string[];
 }
 
-export default function QuizResults({ auth, quiz, score, totalQuestions, experienceGained, userAnswers }: ResultsProps) {
+export default function QuizResults({ quiz, score, totalQuestions, experiencePoints, userAnswers, correctAnswers }: ResultsProps) {
+    const { auth } = usePage<SharedData>().props;
+
+    // Ensure numeric values, defaulting to 0 if NaN, null, or undefined
+    const validScore = Number(correctAnswers) || 0;
+    const validTotalQuestions = Number(totalQuestions) || 0;
+    const validExperienceGained = Number(experiencePoints) || 0;
+
+    const percentageScore = validTotalQuestions > 0 ? (validScore / validTotalQuestions) * 100 : 0;
+
+    const animatedScore = useCountUp(validScore, 1500);
+    const animatedTotalQuestions = useCountUp(validTotalQuestions, 1500);
+    const animatedExperienceGained = useCountUp(validExperienceGained, 1500);
+    const animatedCurrentStreak = useCountUp(auth?.user.current_streak ?? 0, 1500);
+    const animatedTotalExperience = useCountUp(auth?.user.total_experience ?? 0, 1500);
+
+    const [showConfetti, setShowConfetti] = useState(false);
+    const [confettiKey, setConfettiKey] = useState(0);
+    const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+
+    // Get window dimensions for confetti
+    useEffect(() => {
+        function handleResize() {
+            setWindowSize({
+                width: window.innerWidth,
+                height: window.innerHeight,
+            });
+        }
+        if (typeof window !== 'undefined') {
+            handleResize(); // Set initial size
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+        }
+        return () => {}; // Return empty function if window is not defined
+    }, []);
+
+    useEffect(() => {
+        if (percentageScore >= 90) {
+            setShowConfetti(true);
+            setConfettiKey((prevKey) => prevKey + 1);
+            const timer = setTimeout(() => {
+                setShowConfetti(false);
+            }, 7000);
+            return () => clearTimeout(timer);
+        }
+    }, [percentageScore, quiz.id]);
+
     return (
         <AppLayout>
             <Head title={`Results - ${quiz.title}`} />
+            {showConfetti && typeof window !== 'undefined' && (
+                <ReactConfetti
+                    key={confettiKey}
+                    width={windowSize.width}
+                    height={windowSize.height}
+                    recycle={false}
+                    numberOfPieces={400}
+                    gravity={0.12}
+                    initialVelocityY={20}
+                    tweenDuration={5000}
+                    onConfettiComplete={(confetti) => {
+                        if (confetti) confetti.reset(); // Optional: reset confetti state if needed by lib
+                        setShowConfetti(false);
+                    }}
+                />
+            )}
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
                     <Card className="mb-6">
                         <CardHeader>
-                            <CardTitle>Your Score</CardTitle>
+                            <CardTitle>Quiz Results: {quiz.title}</CardTitle>
                         </CardHeader>
                         <CardContent className="text-center">
                             <p className="text-4xl font-bold">
-                                {score} / {totalQuestions}
+                                {animatedScore} / {animatedTotalQuestions} Correct ({percentageScore.toFixed(0)}%)
                             </p>
                             <p className="text-muted-foreground mt-2 text-lg">
-                                You gained <span className="font-semibold text-green-600">{experienceGained}</span> experience points!
+                                You gained <span className="font-semibold text-green-600">{animatedExperienceGained}</span> experience points!
                             </p>
+                            {auth?.user && (
+                                <div className="mt-6 space-y-3 border-t pt-4">
+                                    <div className="flex items-center justify-center text-lg">
+                                        <Flame className="mr-2 h-6 w-6 animate-pulse text-orange-500" />
+                                        Current Streak: <span className="ml-1 font-semibold">{animatedCurrentStreak}</span> days
+                                    </div>
+                                    <div className="flex items-center justify-center text-lg">
+                                        <Star className="mr-2 h-6 w-6 animate-bounce text-yellow-500" />
+                                        Total Experience: <span className="ml-1 font-semibold">{animatedTotalExperience}</span> XP
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                         <CardFooter className="flex justify-center">
                             <Link href={route('dashboard')}>
@@ -63,13 +141,13 @@ export default function QuizResults({ auth, quiz, score, totalQuestions, experie
                             <CardDescription>Check which questions you got right or wrong.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {quiz.questions.map((question, index) => (
+                            {quiz.questions.map((question: Question, index: number) => (
                                 <div key={index} className="rounded-md border p-4">
                                     <h3 className="mb-2 text-lg font-semibold">
                                         Question {index + 1}: {question.question}
                                     </h3>
                                     <ul className="mb-2 space-y-1">
-                                        {question.choices.map((choice, choiceIndex) => {
+                                        {question.choices.map((choice: string, choiceIndex: number) => {
                                             const userAnswer = userAnswers[index];
                                             const isCorrect = choice === question.correct_answer;
                                             const isUserChoice = choice === userAnswer;

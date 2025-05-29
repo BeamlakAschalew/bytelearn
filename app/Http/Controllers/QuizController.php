@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Experience;
 use App\Models\Quiz;
+use App\Models\User;
+use Carbon\Carbon;
 use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,32 +42,34 @@ class QuizController extends Controller
             $geminiResponse = Gemini::generativeModel(model: 'gemini-1.5-flash-latest')->generateContent($prompt);
             $responseText = $geminiResponse->text();
 
-            // Clean the response text: remove markdown code block fences
-            $cleanedResponseText = preg_replace('/^```json\s*|\s*```$/', '', $responseText);
-            $cleanedResponseText = preg_replace('/^```\s*|\s*```$/', '', $cleanedResponseText); // Handle cases without 'json'
+            $cleanedResponseText = preg_replace('/^```json\\s*|\\s*```$/', '', $responseText);
+            $cleanedResponseText = preg_replace('/^```\\s*|\\s*```$/', '', $cleanedResponseText);
 
             $questions = json_decode($cleanedResponseText, true);
 
             if (json_last_error() !== JSON_ERROR_NONE || ! is_array($questions)) {
-                Log::error('Failed to decode Gemini response or response is not an array. Cleaned Response: '.$cleanedResponseText.' Original Response: '.$responseText);
+                Log::error('Failed to decode Gemini response or response is not an array.', [
+                    'cleanedResponse' => $cleanedResponseText,
+                    'originalResponse' => $responseText,
+                    'jsonError' => json_last_error_msg(),
+                ]);
 
                 return back()->withErrors(['gemini' => 'Failed to generate quiz questions. Please try again.']);
             }
 
-            // Validate the structure of each question
             foreach ($questions as $index => $question) {
                 if (! isset($question['question']) || ! isset($question['choices']) || ! isset($question['correct_answer'])) {
-                    Log::error('Invalid question structure from Gemini. Question index: '.$index.' Response: '.$geminiResponse->text());
+                    Log::error('Invalid question structure from Gemini.', ['questionIndex' => $index, 'response' => $responseText]);
 
                     return back()->withErrors(['gemini' => 'Failed to generate valid quiz questions. Please check the format.']);
                 }
                 if (count($question['choices']) !== 4) {
-                    Log::error('Invalid number of choices for a question. Question index: '.$index.' Response: '.$geminiResponse->text());
+                    Log::error('Invalid number of choices for a question.', ['questionIndex' => $index, 'response' => $responseText]);
 
                     return back()->withErrors(['gemini' => 'Quiz questions must have exactly 4 choices.']);
                 }
                 if (! in_array($question['correct_answer'], $question['choices'])) {
-                    Log::error('Correct answer not found in choices. Question index: '.$index.' Response: '.$geminiResponse->text());
+                    Log::error('Correct answer not found in choices.', ['questionIndex' => $index, 'response' => $responseText]);
 
                     return back()->withErrors(['gemini' => 'An internal error occurred with quiz generation.']);
                 }
@@ -76,11 +80,12 @@ class QuizController extends Controller
                 'level' => $validated['level'],
                 'number_of_questions' => $validated['number_of_questions'],
                 'questions' => $questions,
+                'user_id' => Auth::id(),
             ]);
 
             return redirect()->route('quizzes.show', $quiz);
         } catch (\Exception $e) {
-            Log::error('Gemini API error: '.$e->getMessage().' Prompt: '.$prompt);
+            Log::error('Gemini API error: '.$e->getMessage(), ['prompt' => $prompt, 'exception' => $e]);
 
             return back()->withErrors(['gemini' => 'Error generating quiz questions: '.$e->getMessage()]);
         }
@@ -96,11 +101,9 @@ class QuizController extends Controller
     public function submit(Request $request, Quiz $quiz)
     {
         $validated = $request->validate([
-            'answers' => 'required|array',
-            'answers.*' => 'required|string', // Ensure each answer is a string
+            'answers.*' => 'required|string',
         ]);
 
-        $score = 0;
         $correctAnswers = 0;
         $totalQuestions = count($quiz->questions);
 
@@ -109,6 +112,8 @@ class QuizController extends Controller
                 $correctAnswers++;
             }
         }
+
+        $score = ($totalQuestions > 0) ? ($correctAnswers / $totalQuestions) * 100 : 0;
 
         $experiencePoints = 0;
         switch ($quiz->level) {
@@ -123,20 +128,46 @@ class QuizController extends Controller
                 break;
         }
 
-        if (Auth::check() && $experiencePoints > 0) {
-            Experience::create([
-                'user_id' => Auth::id(),
-                'title' => 'Quiz: '.$quiz->title,
-                'experience_score' => $experiencePoints,
-            ]);
+        $user = Auth::user();
+        $updatedUser = null;
+
+        if ($user instanceof User) {
+            if ($experiencePoints > 0) {
+                Experience::create([
+                    'user_id' => $user->id,
+                    'title' => 'Quiz: '.$quiz->title,
+                    'experience_score' => $experiencePoints,
+                ]);
+            }
+
+            $user->total_experience = ($user->total_experience ?? 0) + $experiencePoints;
+            $today = Carbon::today();
+
+            if ($user->last_streak_date) {
+                $lastStreakDate = Carbon::parse($user->last_streak_date);
+                if ($lastStreakDate->isYesterday()) {
+                    $user->current_streak = ($user->current_streak ?? 0) + 1;
+                } elseif (! $lastStreakDate->isToday()) {
+                    $user->current_streak = 1;
+                }
+            } else {
+                $user->current_streak = 1;
+            }
+            $user->last_streak_date = $today;
+            $user->save();
+            $updatedUser = $user->fresh(); // Get a fresh instance of the user model
+        } elseif (Auth::check()) {
+            Log::warning('User is authenticated but Auth::user() did not return a User instance.', ['user_id' => Auth::id()]);
         }
 
         return Inertia::render('Quizzes/Results', [
             'quiz' => $quiz,
-            'score' => $correctAnswers,
+            'score' => $score,
+            'correctAnswers' => $correctAnswers,
             'totalQuestions' => $totalQuestions,
-            'experienceGained' => $experiencePoints,
+            'experiencePoints' => $experiencePoints,
             'userAnswers' => $validated['answers'],
+            'user' => $updatedUser, // Pass the fresh user model or null
         ]);
     }
 }

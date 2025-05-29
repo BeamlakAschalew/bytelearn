@@ -22,6 +22,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'current_streak',
+        'last_streak_date',
+        'total_experience',
     ];
 
     /**
@@ -44,6 +47,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'last_streak_date' => 'date',
         ];
     }
 

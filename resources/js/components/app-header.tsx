@@ -11,15 +11,30 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
+import { BookOpen, BotIcon, Folder, LayoutGrid, Lightbulb, ListChecks, Menu, Search } from 'lucide-react'; // Added icons
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
-        href: '/dashboard',
+        href: '/dashboard', // route('dashboard')
         icon: LayoutGrid,
+    },
+    {
+        title: 'Personalize',
+        href: '/personalize', // route('personalize')
+        icon: Lightbulb,
+    },
+    {
+        title: 'History',
+        href: '/history', // route('history')
+        icon: ListChecks,
+    },
+    {
+        title: 'Playground',
+        href: '/playground', // route('playground')
+        icon: BotIcon,
     },
 ];
 

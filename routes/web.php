@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminVideoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployerController;
 use App\Http\Controllers\PersonalizationController;
@@ -54,6 +55,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/employer/search', [EmployerController::class, 'search'])->name('employer.search');
+});
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('videos', [AdminVideoController::class, 'index'])->name('videos.index');
+    Route::get('videos/create', [AdminVideoController::class, 'create'])->name('videos.create');
+    Route::post('videos', [AdminVideoController::class, 'store'])->name('videos.store');
 });
 
 require __DIR__.'/settings.php';

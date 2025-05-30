@@ -8,13 +8,13 @@ interface Quiz {
     title: string;
     level: string;
     number_of_questions: number;
-    created_at: string; // Assuming created_at is a string, adjust if it's a Date object
+    created_at: string;
 }
 
 interface QuizzesIndexProps {
     quizzes: Quiz[];
-    auth: any; // Add auth prop if needed for AppLayout or other purposes
-    errors: any; // Add errors prop if needed
+    auth: any;
+    errors: any;
 }
 
 export default function QuizzesIndex({ quizzes, auth, errors }: QuizzesIndexProps) {

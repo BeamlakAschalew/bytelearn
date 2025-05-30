@@ -6,7 +6,7 @@ import { SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { CheckCircle, Flame, Star, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import ReactConfetti from 'react-confetti'; // Renamed import for clarity
+import ReactConfetti from 'react-confetti';
 
 interface Choice {
     text: string;
@@ -14,7 +14,7 @@ interface Choice {
 }
 interface Question {
     question: string;
-    choices: Choice[]; // Changed from string[] to Choice[]
+    choices: Choice[];
     correct_answer: string;
 }
 
@@ -37,7 +37,6 @@ interface ResultsProps {
 export default function QuizResults({ quiz, score, totalQuestions, experiencePoints, userAnswers, correctAnswers }: ResultsProps) {
     const { auth } = usePage<SharedData>().props;
 
-    // Ensure numeric values, defaulting to 0 if NaN, null, or undefined
     const validScore = Number(correctAnswers) || 0;
     const validTotalQuestions = Number(totalQuestions) || 0;
     const validExperienceGained = Number(experiencePoints) || 0;
@@ -54,7 +53,6 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
     const [confettiKey, setConfettiKey] = useState(0);
     const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
-    // Get window dimensions for confetti
     useEffect(() => {
         function handleResize() {
             setWindowSize({
@@ -63,11 +61,11 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
             });
         }
         if (typeof window !== 'undefined') {
-            handleResize(); // Set initial size
+            handleResize();
             window.addEventListener('resize', handleResize);
             return () => window.removeEventListener('resize', handleResize);
         }
-        return () => {}; // Return empty function if window is not defined
+        return () => {};
     }, []);
 
     useEffect(() => {
@@ -80,15 +78,6 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
             return () => clearTimeout(timer);
         }
     }, [percentageScore, quiz.id]);
-
-    const processedChoices: Choice[] = quiz.questions.flatMap((question) =>
-        question.choices.map((choiceData: any): Choice => {
-            if (typeof choiceData === 'string') {
-                return { text: choiceData, audio_url: null };
-            }
-            return choiceData as Choice;
-        }),
-    );
 
     return (
         <AppLayout>
@@ -104,7 +93,7 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
                     initialVelocityY={20}
                     tweenDuration={5000}
                     onConfettiComplete={(confetti) => {
-                        if (confetti) confetti.reset(); // Optional: reset confetti state if needed by lib
+                        if (confetti) confetti.reset();
                         setShowConfetti(false);
                     }}
                 />
@@ -154,49 +143,60 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
                             <CardDescription>Check which questions you got right or wrong.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {quiz.questions.map((question: Question, index: number) => (
-                                <div key={index} className="rounded-md border p-4">
-                                    <h3 className="mb-2 text-lg font-semibold">
-                                        Question {index + 1}: {question.question}
-                                    </h3>
-                                    <ul className="mb-2 space-y-1">
-                                        {question.choices.map((choice: Choice, choiceIndex: number) => {
-                                            // choice is now type Choice
-                                            const userAnswer = userAnswers[index];
-                                            const isCorrect = choice.text === question.correct_answer; // Compare choice.text
-                                            const isUserChoice = choice.text === userAnswer; // Compare choice.text
-                                            let choiceClass = 'flex items-center p-2 rounded-md ';
+                            {quiz.questions.map((question: Question, index: number) => {
+                                const normalizedChoices: Choice[] = question.choices.map((choiceData: any): Choice => {
+                                    if (typeof choiceData === 'string') {
+                                        return { text: choiceData, audio_url: null };
+                                    }
+                                    return {
+                                        text: choiceData.text,
+                                        audio_url: choiceData.audio_url || null,
+                                    };
+                                });
 
-                                            if (isCorrect) {
-                                                choiceClass += 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300';
-                                            } else if (isUserChoice && !isCorrect) {
-                                                choiceClass += 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300';
-                                            } else {
-                                                choiceClass += 'bg-gray-50 dark:bg-gray-700';
-                                            }
+                                return (
+                                    <div key={index} className="rounded-md border p-4">
+                                        <h3 className="mb-2 text-lg font-semibold">
+                                            Question {index + 1}: {question.question}
+                                        </h3>
+                                        <ul className="mb-2 space-y-1">
+                                            {normalizedChoices.map((choice: Choice, choiceIndex: number) => {
+                                                const userAnswer = userAnswers[index];
+                                                const isCorrect = choice.text === question.correct_answer;
+                                                const isUserChoice = choice.text === userAnswer;
+                                                let choiceClass = 'flex items-center p-2 rounded-md ';
 
-                                            return (
-                                                <li key={choiceIndex} className={choiceClass}>
-                                                    {isCorrect && <CheckCircle className="mr-2 h-5 w-5 text-green-500" />}
-                                                    {!isCorrect && isUserChoice && <XCircle className="mr-2 h-5 w-5 text-red-500" />}
-                                                    <span className="flex-1">{choice.text}</span> {/* Render choice.text */}
-                                                    {isUserChoice && !isCorrect && <span className="ml-2 text-xs">(Your answer)</span>}
-                                                    {isCorrect && !isUserChoice && userAnswer && (
-                                                        <span className="ml-2 text-xs text-green-600">(Correct answer)</span>
-                                                    )}
-                                                    {isCorrect && isUserChoice && <span className="ml-2 text-xs">(Correct)</span>}
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                    {userAnswers[index] !== question.correct_answer && (
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            Your answer: <span className="font-semibold">{userAnswers[index] || 'Not answered'}</span>. Correct
-                                            answer: <span className="font-semibold text-green-600">{question.correct_answer}</span>
-                                        </p>
-                                    )}
-                                </div>
-                            ))}
+                                                if (isCorrect) {
+                                                    choiceClass += 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300';
+                                                } else if (isUserChoice && !isCorrect) {
+                                                    choiceClass += 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300';
+                                                } else {
+                                                    choiceClass += 'bg-gray-50 dark:bg-gray-700';
+                                                }
+
+                                                return (
+                                                    <li key={choiceIndex} className={choiceClass}>
+                                                        {isCorrect && <CheckCircle className="mr-2 h-5 w-5 text-green-500" />}
+                                                        {!isCorrect && isUserChoice && <XCircle className="mr-2 h-5 w-5 text-red-500" />}
+                                                        <span className="flex-1">{choice.text}</span> {/* Render choice.text */}
+                                                        {isUserChoice && !isCorrect && <span className="ml-2 text-xs">(Your answer)</span>}
+                                                        {isCorrect && !isUserChoice && userAnswer && (
+                                                            <span className="ml-2 text-xs text-green-600">(Correct answer)</span>
+                                                        )}
+                                                        {isCorrect && isUserChoice && <span className="ml-2 text-xs">(Correct)</span>}
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                        {userAnswers[index] !== question.correct_answer && (
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                Your answer: <span className="font-semibold">{userAnswers[index] || 'Not answered'}</span>. Correct
+                                                answer: <span className="font-semibold text-green-600">{question.correct_answer}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </CardContent>
                     </Card>
                 </div>

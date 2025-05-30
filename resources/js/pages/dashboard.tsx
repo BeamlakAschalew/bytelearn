@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Bot, Lightbulb, ListChecks } from 'lucide-react';
-import { useEffect, useState } from 'react'; // Import useState
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -26,8 +26,6 @@ export default function Dashboard({ personalizationCount, lastActivity }: { pers
 
     const handleCloseToast = () => {
         setShowToast(false);
-        // Optionally, you might want to clear the flash message from session/state here
-        // so it doesn't reappear on a soft refresh if not handled by Inertia's flash mechanism.
     };
 
     return (

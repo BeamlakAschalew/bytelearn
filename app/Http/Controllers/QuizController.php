@@ -76,7 +76,7 @@ class QuizController extends Controller
                 'Content-Type' => 'application/json',
             ])->post('https://api.v8.unrealspeech.com/speech', [
                 'Text' => $text,
-                'VoiceId' => 'Sierra', // As used in PersonalizationController
+                'VoiceId' => 'Sierra',
                 // No 'OutputFormat' => 'uri' needed if API defaults to returning OutputUri in JSON
             ]);
 

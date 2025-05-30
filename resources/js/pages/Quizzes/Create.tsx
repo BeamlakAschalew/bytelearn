@@ -4,12 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
 
 interface CreateQuizProps {
-    auth: any; // Adjust according to your auth prop structure
-    errors: any; // To display validation errors from Laravel
+    auth: any;
+    errors: any;
 }
 
 interface FormData {
@@ -33,13 +34,8 @@ export default function CreateQuiz({ auth, errors: backendErrors }: CreateQuizPr
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         post(route('quizzes.store'), {
-            onError: () => {
-                // Handle server-side validation errors if needed, already covered by `errors` prop
-            },
-            onSuccess: () => {
-                // Optionally reset form or navigate, handled by controller redirect
-                // No need to reset here as we are redirecting
-            },
+            onError: () => {},
+            onSuccess: () => {},
         });
     };
 

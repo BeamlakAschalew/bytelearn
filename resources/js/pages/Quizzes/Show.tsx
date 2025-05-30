@@ -67,14 +67,14 @@ export default function ShowQuiz({ auth, quiz, errors: backendErrors }: ShowQuiz
     };
 
     useEffect(() => {
-        const currentAudioRef = audioRef.current; // Capture ref value for cleanup
+        const currentAudioRef = audioRef.current;
         return () => {
             if (currentAudioRef) {
                 currentAudioRef.pause();
                 currentAudioRef.src = '';
             }
         };
-    }, [currentQuestionIndex]); // Rerun effect if question changes
+    }, [currentQuestionIndex]);
 
     const currentQuestion = quiz.questions[currentQuestionIndex];
 

@@ -19,7 +19,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'AI Personalization', href: route('personalize') },
 ];
 
-// Custom component for rendering code blocks with highlighting
 const CustomCodeRenderer = ({ node, inline, className, children, ...props }: any) => {
     const codeRef = useRef<HTMLElement>(null);
     const match = /language-(\w+)/.exec(className || '');
@@ -28,7 +27,6 @@ const CustomCodeRenderer = ({ node, inline, className, children, ...props }: any
 
     useEffect(() => {
         if (codeRef.current && !inline) {
-            // Ensure the element is clean for highlight.js
             codeRef.current.textContent = codeContent;
             delete (codeRef.current as HTMLElement).dataset.highlighted;
             try {
@@ -37,7 +35,7 @@ const CustomCodeRenderer = ({ node, inline, className, children, ...props }: any
                 console.error('Error during highlighting:', e);
             }
         }
-    }, [codeContent, inline, language]); // Depend on processed codeContent
+    }, [codeContent, inline, language]);
 
     if (inline) {
         return (
@@ -47,7 +45,6 @@ const CustomCodeRenderer = ({ node, inline, className, children, ...props }: any
         );
     }
 
-    // For block code, ReactMarkdown wraps <code> in <pre>. We apply ref to <code>.
     return (
         <code ref={codeRef} className={language ? `language-${language}` : ''} {...props}>
             {children}
@@ -72,7 +69,6 @@ export default function PersonalizeForm() {
     const [streamGlobalError, setStreamGlobalError] = useState<string | null>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
 
-    // Cleanup EventSource on component unmount or when stream ends
     useEffect(() => {
         return () => {
             if (eventSourceRef.current) {
@@ -86,7 +82,6 @@ export default function PersonalizeForm() {
         e.preventDefault();
         if (isStreaming) return;
 
-        // Reset states for new request
         setShowResponseArea(true);
         setResponseContent('');
         setAudioUrl(null);
@@ -95,15 +90,13 @@ export default function PersonalizeForm() {
         setIsStreaming(true);
 
         if (eventSourceRef.current) {
-            eventSourceRef.current.close(); // Close any existing connection
+            eventSourceRef.current.close();
         }
 
         try {
             const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
 
-            // 1. Initiate the stream and get streamId
             const initiateResponse = await fetch(route('personalize.initiate'), {
-                // Ensure this route is defined
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -130,8 +123,6 @@ export default function PersonalizeForm() {
                 throw new Error('Stream ID not received from server.');
             }
 
-            // 2. Connect to the SSE stream
-            // Ensure this route is defined and accepts streamId
             const es = new EventSource(route('personalize.stream', { streamId }));
             eventSourceRef.current = es;
 
@@ -149,8 +140,6 @@ export default function PersonalizeForm() {
                 const eventData = JSON.parse(event.data);
                 setAudioUrl(eventData.audioUrl || null);
                 setAudioError(eventData.audioError || null);
-                // Optionally, set full text if there's a concern about chunk accumulation
-                // if (eventData.fullText) setResponseContent(eventData.fullText);
                 console.log('Audio details received:', eventData);
             });
 

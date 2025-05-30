@@ -10,7 +10,7 @@ import { LoaderCircle, Send } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 interface PlaygroundProps {
-    response?: string; // Optional response from previous submission
+    response?: string;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -30,7 +30,6 @@ export default function Playground({ response: initialResponse }: PlaygroundProp
         e.preventDefault();
         post(route('playground.submit'), {
             onSuccess: (page: any) => {
-                // Adjust type as per your Inertia page props
                 setResponseData('response', page.props.response || 'No response from server.');
                 reset('prompt');
             },

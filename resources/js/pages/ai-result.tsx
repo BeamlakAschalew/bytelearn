@@ -5,8 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { Check, Copy, Download } from 'lucide-react'; // Import Check icon
-import { useState } from 'react'; // Import useState
+import { Check, Copy, Download } from 'lucide-react';
+import { useState } from 'react';
 
 interface PersonalizationData {
     id: number | string;
@@ -15,7 +15,7 @@ interface PersonalizationData {
     content: string;
     notes: string;
     date: string;
-    audio_file?: string; // Added audio_file as an optional field
+    audio_file?: string;
 }
 
 interface AiResultProps {
@@ -24,7 +24,7 @@ interface AiResultProps {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: route('dashboard') },
-    { title: 'AI Result', href: '#' }, // Dynamic href based on uid if needed
+    { title: 'AI Result', href: '#' },
 ];
 
 export default function AiResult({ personalization_data }: AiResultProps) {
@@ -32,18 +32,14 @@ export default function AiResult({ personalization_data }: AiResultProps) {
         content: personalization_data.content,
         notes: personalization_data.notes,
     });
-    const [showCopySuccess, setShowCopySuccess] = useState(false); // Add state for copy success
+    const [showCopySuccess, setShowCopySuccess] = useState(false);
 
     const handleRegenerate = () => {
-        // Placeholder for regenerate logic, likely a new POST request
         console.log('Regenerate for UID:', personalization_data.id);
-        // Example: post(route('ai.regenerate', { uid: personalization_data.id }));
     };
 
     const handleSave = () => {
-        // Placeholder for save logic, e.g., save notes or entire content
         console.log('Save for UID:', personalization_data.id, 'Notes:', data.notes);
-        // Example: post(route('ai.save', { uid: personalization_data.id, notes: data.notes }));
     };
 
     const handleCopy = () => {
@@ -54,7 +50,6 @@ export default function AiResult({ personalization_data }: AiResultProps) {
                     console.log('Content copied to clipboard!');
                     setShowCopySuccess(true);
                     setTimeout(() => setShowCopySuccess(false), 2000);
-                    // You can add a toast notification here for better UX
                 })
                 .catch((err) => {
                     console.error('Failed to copy content using navigator.clipboard:', err);
@@ -69,7 +64,6 @@ export default function AiResult({ personalization_data }: AiResultProps) {
         const textArea = document.createElement('textarea');
         textArea.value = text;
 
-        // Avoid scrolling to bottom
         textArea.style.top = '0';
         textArea.style.left = '0';
         textArea.style.position = 'fixed';
@@ -84,7 +78,6 @@ export default function AiResult({ personalization_data }: AiResultProps) {
                 console.log('Content copied to clipboard using fallback!');
                 setShowCopySuccess(true);
                 setTimeout(() => setShowCopySuccess(false), 2000);
-                // You can add a toast notification here
             } else {
                 console.error('Fallback: Copying text command was unsuccessful');
                 alert('Failed to copy text. Please copy it manually.');
@@ -98,7 +91,7 @@ export default function AiResult({ personalization_data }: AiResultProps) {
     };
 
     const handleShare = () => {
-        /* Implement sharing logic */ console.log('Share UID:', personalization_data.id);
+        console.log('Share UID:', personalization_data.id);
     };
 
     const handleDownload = async () => {
@@ -113,7 +106,6 @@ export default function AiResult({ personalization_data }: AiResultProps) {
         document.body.removeChild(textLink);
         URL.revokeObjectURL(textUrl);
 
-        // Download audio file if it exists
         if (personalization_data.audio_file) {
             try {
                 const response = await fetch(personalization_data.audio_file);
@@ -125,10 +117,9 @@ export default function AiResult({ personalization_data }: AiResultProps) {
                 const audioLink = document.createElement('a');
                 audioLink.href = audioUrl;
 
-                let audioFileName = 'audio.mp3'; // Default filename
+                let audioFileName = 'audio.mp3';
                 const originalFileName = personalization_data.audio_file.substring(personalization_data.audio_file.lastIndexOf('/') + 1);
                 if (originalFileName) {
-                    // Basic sanitization and ensure it has an extension
                     const nameParts = originalFileName.split('.');
                     const ext = nameParts.length > 1 ? nameParts.pop() : 'mp3';
                     audioFileName = `${

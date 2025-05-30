@@ -117,7 +117,6 @@ class PersonalizationController extends Controller
             $audioError = null;
 
             try {
-                // Stream text from Gemini
                 $stream = Gemini::generativeModel(model: 'gemini-1.5-flash')
                     ->streamGenerateContent($finalPrompt);
 
@@ -138,10 +137,8 @@ class PersonalizationController extends Controller
                     echo 'data: '.json_encode(['error' => 'No content was generated from the AI.'])."\n\n";
                     ob_flush();
                     flush();
-                    // We still proceed to streamEnd and cleanup
                 }
 
-                // If text was generated, attempt to get audio
                 if (! empty($generatedText)) {
                     $unrealApiKey = env('UNREALSPEECH_API_KEY');
                     if ($unrealApiKey) {
@@ -184,7 +181,6 @@ class PersonalizationController extends Controller
                         $audioError = 'Audio generation is not configured (API key missing).';
                     }
 
-                    // Save to database if text was generated and user is logged in
                     if ($userId) { // Only save if user is logged in
                         Personalization::create([
                             'user_id' => $userId,
@@ -197,7 +193,6 @@ class PersonalizationController extends Controller
                     }
                 }
 
-                // Send audio details (even if text generation failed, to provide closure)
                 echo "event: audioDetails\n";
                 echo 'data: '.json_encode(['audioUrl' => $audioUrl, 'audioError' => $audioError, 'fullText' => $generatedText])."\n\n";
                 ob_flush();
@@ -210,7 +205,6 @@ class PersonalizationController extends Controller
                 ob_flush();
                 flush();
             } finally {
-                // Send stream end event
                 echo "event: streamEnd\n";
                 echo 'data: '.json_encode(['message' => 'Stream completed.'])."\n\n";
                 ob_flush();
@@ -247,12 +241,11 @@ class PersonalizationController extends Controller
             'personalization_data' => [
                 'id' => $personalization->id,
                 'topic' => $personalization->name,
-                'description' => $personalization->description, // Full description string
+                'description' => $personalization->description,
                 'content' => $personalization->content,
                 'notes' => $personalization->note,
                 'date' => $personalization->created_at->toDateString(),
-                'audio_file' => $personalization->audio_file, // Add this line
-                // 'level' could be extracted from description if needed, or passed if stored separately during creation
+                'audio_file' => $personalization->audio_file,
             ],
         ]);
     }

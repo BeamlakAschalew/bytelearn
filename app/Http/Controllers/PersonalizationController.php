@@ -29,11 +29,13 @@ class PersonalizationController extends Controller
             ->map(function ($path) {
                 return [
                     'id' => $path->id,
-                    'topic' => $path->name, // Assuming 'name' field stores the topic
-                    'level' => $path->description, // Assuming 'description' field stores the level
+                    'topic' => $path->name,
+                    'level' => $path->description,
                     'date' => $path->created_at->toDateString(),
                 ];
             });
+
+        // dd($learningPaths->toArray());
 
         return Inertia::render('history', ['learningPaths' => $learningPaths]);
     }

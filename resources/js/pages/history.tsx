@@ -51,7 +51,7 @@ export default function History({ learningPaths }: HistoryProps) {
                                             <TableCell>{new Date(path.date).toLocaleDateString()}</TableCell>
                                             <TableCell className="text-right">
                                                 <Button asChild variant="outline" size="sm">
-                                                    <Link href={route('ai.result', { uid: path.id.toString() })}>
+                                                    <Link href={route('ai.result', { personalization: path.id.toString() })}>
                                                         <Eye className="mr-2 h-4 w-4" /> View
                                                     </Link>
                                                 </Button>

@@ -69,7 +69,7 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
     }, []);
 
     useEffect(() => {
-        if (percentageScore >= 90) {
+        if (percentageScore >= 70) {
             setShowConfetti(true);
             setConfettiKey((prevKey) => prevKey + 1);
             const timer = setTimeout(() => {

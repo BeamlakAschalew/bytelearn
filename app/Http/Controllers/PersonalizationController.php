@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PersonalizationController extends Controller
@@ -21,7 +22,20 @@ class PersonalizationController extends Controller
      */
     public function index()
     {
-        //
+        $userId = Auth::id();
+        $learningPaths = Personalization::where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($path) {
+                return [
+                    'id' => $path->id,
+                    'topic' => $path->name, // Assuming 'name' field stores the topic
+                    'level' => $path->description, // Assuming 'description' field stores the level
+                    'date' => $path->created_at->toDateString(),
+                ];
+            });
+
+        return Inertia::render('history', ['learningPaths' => $learningPaths]);
     }
 
     /**
@@ -225,7 +239,22 @@ class PersonalizationController extends Controller
      */
     public function show(Personalization $personalization)
     {
-        //
+        if (Auth::id() !== $personalization->user_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return Inertia::render('ai-result', [
+            'personalization_data' => [
+                'id' => $personalization->id,
+                'topic' => $personalization->name,
+                'description' => $personalization->description, // Full description string
+                'content' => $personalization->content,
+                'notes' => $personalization->note,
+                'date' => $personalization->created_at->toDateString(),
+                'audio_file' => $personalization->audio_file, // Add this line
+                // 'level' could be extracted from description if needed, or passed if stored separately during creation
+            ],
+        ]);
     }
 
     /**

@@ -7,8 +7,10 @@ use App\Models\Personalization;
 use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log; // Added for Unrealspeech
+use Illuminate\Support\Facades\Storage; // Added for saving audio
+use Illuminate\Support\Str; // Added for generating unique filenames
 
 class PersonalizationController extends Controller
 {
@@ -35,52 +37,125 @@ class PersonalizationController extends Controller
     {
         $validated = $request->validated();
 
-        $prompt = 'Explain in full depth about '.$validated['topic'].
-                  ' at a '.$validated['learning_level'].' level. Attach any relevant examples or analogies to help understanding. Attach any resources like blogs, articles, or videos that can help the user understand the topic better.';
-        if (! empty($validated['note'])) {
-            $prompt .= ' Note: '.$validated['note'];
+        $basePrompt = 'Explain in full depth about '.$validated['topic'].
+                      ' at a '.$validated['learning_level'].' level.';
+
+        // Append content type preference to the prompt
+        if (! empty($validated['content_type']) && $validated['content_type'] !== 'Default') {
+            switch ($validated['content_type']) {
+                case 'Concise':
+                    $basePrompt .= ' Keep the explanation concise.';
+                    break;
+                case 'Detailed':
+                    $basePrompt .= ' Provide a detailed explanation.';
+                    break;
+                case 'With Analogies':
+                    $basePrompt .= ' Include analogies to help understanding.';
+                    break;
+                case 'Include Visuals':
+                    $basePrompt .= ' Describe any relevant visuals that would aid understanding.';
+                    break;
+            }
+        } else {
+            $basePrompt .= ' Attach any relevant examples or analogies to help understanding. Attach any resources like blogs, articles, or videos that can help the user understand the topic better.';
         }
 
-        $fullResponse = ''; // Variable to accumulate the full response
+        if (! empty($validated['note'])) {
+            $basePrompt .= ' Note: '.$validated['note'];
+        }
 
-        return new StreamedResponse(function () use ($prompt, $validated, &$fullResponse) {
-            if (ob_get_level() > 0) {
-                ob_end_flush();
+        $finalPrompt = $basePrompt;
+        $generatedText = '';
+        $audioUrl = null;
+        $audioError = null;
+
+        try {
+            $stream = Gemini::generativeModel(model: 'gemini-1.5-flash') // Assuming you might prefer 1.5-flash
+                ->streamGenerateContent($finalPrompt);
+
+            foreach ($stream as $responseChunk) {
+                $generatedText .= $responseChunk->text();
             }
 
-            header('Content-Type: text/plain; charset=UTF-8');
-            header('X-Accel-Buffering: no');
-            header('Cache-Control: no-cache');
+            if (! empty($generatedText)) {
+                // Now, get the audio from Unrealspeech
+                $unrealApiKey = env('UNREALSPEECH_API_KEY');
+                if ($unrealApiKey) {
+                    try {
+                        $response = Http::withHeaders([
+                            'Authorization' => 'Bearer '.$unrealApiKey,
+                            'Content-Type' => 'application/json',
+                        ])->post('https://api.v8.unrealspeech.com/speech', [
+                            'Text' => $generatedText,
+                            'VoiceId' => 'af_bella', // Hardcoded as per preference
+                            // 'Bitrate' => '192k', // Optional: default is 192k
+                            // 'TimestampType' => 'sentence', // Optional
+                        ]);
 
-            try {
-                $stream = Gemini::generativeModel(model: 'gemini-2.0-flash')
-                    ->streamGenerateContent($prompt);
+                        if ($response->successful()) {
+                            Log::info('Unrealspeech response: '.$response->body());
+                            // Check if response is JSON with a URL or raw audio
+                            $contentType = $response->header('Content-Type');
+                            if (str_contains($contentType, 'application/json')) {
+                                Log::info('Unrealspeech returned JSON content.');
+                                $audioUrl = $response->json('OutputUri');
+                                if (! $audioUrl) {
+                                    Log::error('Unrealspeech JSON response did not contain OutputUri.');
+                                    $audioError = 'Failed to retrieve audio URL from Unrealspeech.';
+                                }
 
-                foreach ($stream as $responseChunk) {
-                    $chunkText = $responseChunk->text();
-                    echo $chunkText;
-                    $fullResponse .= $chunkText; // Accumulate chunk
-                    flush();
-                }
-
-                if (Auth::check()) {
-                    Personalization::create([
-                        'user_id' => Auth::id(),
-                        'name' => $validated['topic'],
-                        'description' => 'Generated content for '.$validated['topic'].' at '.$validated['learning_level'].' level.',
-                        'note' => $validated['note'] ?? null,
-                        'content' => $fullResponse,
-                    ]);
+                            } elseif (str_contains($contentType, 'audio/')) {
+                                $audioContent = $response->body();
+                                $filename = 'public/tts_audio/'.Str::uuid().'.mp3';
+                                Storage::put($filename, $audioContent);
+                                $audioUrl = Storage::url($filename);
+                            } else {
+                                Log::error('Unrealspeech returned unexpected content type: '.$contentType.' Body: '.$response->body());
+                                $audioError = 'Failed to process audio response from Unrealspeech.';
+                            }
+                        } else {
+                            Log::error('Unrealspeech API error: '.$response->status().' - '.$response->body());
+                            $audioError = 'Failed to generate audio: Unrealspeech API error ('.$response->status().').';
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Unrealspeech request failed: '.$e->getMessage());
+                        $audioError = 'Failed to generate audio due to a network or server issue.';
+                    }
                 } else {
-                    Log::warning('Attempted to save personalization for unauthenticated user.');
+                    Log::warning('UNREALSPEECH_API_KEY not set. Skipping audio generation.');
+                    $audioError = 'Audio generation is not configured (API key missing).';
                 }
-
-            } catch (\Exception $e) {
-                Log::error('Gemini streaming error: '.$e->getMessage().' Prompt: '.$prompt);
-                echo 'Error: Unable to generate content at this time. Please try again later.';
-                flush();
+            } else {
+                $generatedText = 'Failed to generate text content.'; // Should not happen if Gemini works
             }
-        });
+
+            // Save to database if text was generated
+            if (Auth::check() && ! empty($generatedText) && $generatedText !== 'Failed to generate text content.') {
+                Personalization::create([
+                    'user_id' => Auth::id(),
+                    'name' => $validated['topic'],
+                    'description' => 'Generated content for '.$validated['topic'].' at '.$validated['learning_level'].' level.',
+                    'note' => $validated['note'] ?? null,
+                    'content' => $generatedText,
+                    // 'audio_url' => $audioUrl, // You might want to add an audio_url column to your personalizations table
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Gemini content generation error: '.$e->getMessage().' Prompt: '.$finalPrompt);
+
+            return response()->json([
+                'textContent' => 'Error: Unable to generate content at this time. Please try again later.',
+                'audioUrl' => null,
+                'error' => 'Gemini API error: '.$e->getMessage(),
+            ], 500);
+        }
+
+        return response()->json([
+            'textContent' => $generatedText,
+            'audioUrl' => $audioUrl,
+            'error' => $audioError, // This is for audio-specific errors, null if successful
+        ]);
     }
 
     /**

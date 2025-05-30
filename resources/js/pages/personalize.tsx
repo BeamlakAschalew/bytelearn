@@ -9,7 +9,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css'; // Or your preferred theme
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react'; // Removed Volume2, Square
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -61,11 +61,16 @@ export default function PersonalizeForm() {
         topic: '',
         learning_level: 'Beginner',
         note: '',
+        content_type: 'Default',
     });
 
     const [showResponseArea, setShowResponseArea] = useState(false);
     const [responseContent, setResponseContent] = useState('');
-    const [isStreaming, setIsStreaming] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false); // Will represent overall loading state
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [audioError, setAudioError] = useState<string | null>(null);
+
+    // Effect for cleaning up speech synthesis - REMOVED
 
     const submit: FormEventHandler = async (e) => {
         e.preventDefault();
@@ -73,6 +78,8 @@ export default function PersonalizeForm() {
 
         setShowResponseArea(true);
         setResponseContent('');
+        setAudioUrl(null);
+        setAudioError(null);
         setIsStreaming(true);
 
         try {
@@ -82,12 +89,13 @@ export default function PersonalizeForm() {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken || '',
-                    Accept: 'text/plain',
+                    Accept: 'application/json', // Changed from 'text/plain'
                 },
                 body: JSON.stringify({
                     topic: data.topic,
                     learning_level: data.learning_level,
                     note: data.note,
+                    content_type: data.content_type,
                 }),
             });
 
@@ -96,30 +104,38 @@ export default function PersonalizeForm() {
                 throw new Error(`Server error: ${response.status} - ${errorText}`);
             }
 
-            if (response.body) {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
+            const jsonResponse = await response.json();
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        console.log('Personalization stream complete.');
-                        break;
-                    }
-                    const chunk = decoder.decode(value, { stream: true });
-                    setResponseContent((prev) => prev + chunk);
-                }
-                // reset(); // Reset form after successful stream
+            if (jsonResponse.textContent) {
+                setResponseContent(jsonResponse.textContent);
             } else {
-                setResponseContent('No response body received from server.');
+                setResponseContent('No text content received from server.');
+            }
+
+            if (jsonResponse.audioUrl) {
+                setAudioUrl(jsonResponse.audioUrl);
+            }
+
+            if (jsonResponse.audioError) {
+                setAudioError(jsonResponse.audioError);
+            } else if (jsonResponse.audioUrl && !jsonResponse.audioError && responseContent) {
+                // If we have an audio URL and text content, but no specific audio error, clear any previous generic audio error.
+                setAudioError(null);
+            } else if (!jsonResponse.audioUrl && jsonResponse.textContent) {
+                // If we have text but no audio URL and no specific audio error, set a generic one.
+                setAudioError('Audio could not be generated for this content.');
             }
         } catch (error) {
-            console.error('Error fetching or streaming personalization:', error);
-            setResponseContent(`Error: ${error instanceof Error ? error.message : 'An unknown error occurred.'}`);
+            console.error('Error fetching or processing personalization:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+            setResponseContent(`Error: ${errorMessage}`);
+            setAudioError('Failed to retrieve audio due to a network or server error.');
         } finally {
             setIsStreaming(false);
         }
     };
+
+    // handleToggleSpeak function - REMOVED
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -135,9 +151,28 @@ export default function PersonalizeForm() {
                                 {isStreaming && !responseContent && (
                                     <div className="flex items-center justify-center">
                                         <LoaderCircle className="text-primary h-8 w-8 animate-spin" />
-                                        <p className="text-muted-foreground ml-2">Generating...</p>
+                                        <p className="text-muted-foreground ml-2">Generating content and audio...</p>
                                     </div>
                                 )}
+                                {/* TTS Button and Voice Selector START - REMOVED */}
+                                {/* New Audio Player and Error Display START */}
+                                {responseContent && !isStreaming && (
+                                    <div className="mb-4">
+                                        {audioUrl && !audioError && (
+                                            <div className="mt-4">
+                                                <audio controls src={audioUrl} className="w-full">
+                                                    Your browser does not support the audio element.
+                                                </audio>
+                                            </div>
+                                        )}
+                                        {audioError && (
+                                            <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                                                <p>Audio Error: {audioError}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {/* New Audio Player and Error Display END */}
                                 <div className="prose dark:prose-invert max-w-none">
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm]}
@@ -149,7 +184,12 @@ export default function PersonalizeForm() {
                                         {responseContent}
                                     </ReactMarkdown>
                                 </div>
-                                {isStreaming && responseContent && <LoaderCircle className="text-primary mt-2 h-4 w-4 animate-spin" />}
+                                {isStreaming && responseContent && (
+                                    <div className="mt-2 flex items-center justify-center">
+                                        <LoaderCircle className="text-primary h-4 w-4 animate-spin" />
+                                        <p className="text-muted-foreground ml-2 text-sm">Finalizing audio...</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -190,6 +230,26 @@ export default function PersonalizeForm() {
                                         </SelectContent>
                                     </Select>
                                     <InputError message={(pageErrors as any)?.learning_level} className="mt-2" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="content_type">Content Type Preference</Label>
+                                    <Select
+                                        value={data.content_type}
+                                        onValueChange={(value) => setData('content_type', value)}
+                                        disabled={isStreaming}
+                                    >
+                                        <SelectTrigger id="content_type">
+                                            <SelectValue placeholder="Select content type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Default">Default</SelectItem>
+                                            <SelectItem value="Concise">Concise</SelectItem>
+                                            <SelectItem value="Detailed">Detailed</SelectItem>
+                                            <SelectItem value="With Analogies">With Analogies</SelectItem>
+                                            <SelectItem value="Include Visuals">Include Visuals (text-based description)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError message={(pageErrors as any)?.content_type} className="mt-2" />
                                 </div>
                                 <div className="mb-4 space-y-2">
                                     <Label htmlFor="note">Note</Label>

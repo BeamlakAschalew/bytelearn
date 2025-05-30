@@ -25,6 +25,7 @@ class PersonalizationRequest extends FormRequest
             'topic' => 'required|string|max:255',
             'learning_level' => 'required|string|in:Beginner,Intermediate,Advanced',
             'note' => 'nullable|string|max:1000',
+            'content_type' => 'nullable|string|in:Default,Concise,Detailed,With Analogies,Include Visuals',
         ];
     }
 }

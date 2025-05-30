@@ -15,6 +15,15 @@ use Inertia\Inertia;
 
 class QuizController extends Controller
 {
+    public function index()
+    {
+        $quizzes = Quiz::orderBy('created_at', 'desc')->get(); // Fetch all quizzes, newest first
+
+        return Inertia::render('Quizzes/Index', [
+            'quizzes' => $quizzes,
+        ]);
+    }
+
     public function create()
     {
         return Inertia::render('Quizzes/Create');

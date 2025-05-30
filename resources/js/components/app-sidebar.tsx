@@ -29,8 +29,13 @@ const mainNavItems: NavItem[] = [
         icon: BotIcon,
     },
     {
-        title: 'Quiz',
+        title: 'Create Quiz',
         href: route('quizzes.create'),
+        icon: ClipboardList,
+    },
+    {
+        title: 'Quizes',
+        href: route('quizzes.index'),
         icon: ClipboardList,
     },
 ];

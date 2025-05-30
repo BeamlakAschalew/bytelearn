@@ -44,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('playground.submit');
 
     // Quiz Routes
+    Route::get('/quizzes', [QuizController::class, 'index'])->name('quizzes.index'); // Added route for listing quizzes
     Route::get('/quizzes/create', [QuizController::class, 'create'])->name('quizzes.create');
     Route::post('/quizzes', [QuizController::class, 'store'])->name('quizzes.store');
     Route::get('/quizzes/{quiz}', [QuizController::class, 'show'])->name('quizzes.show');

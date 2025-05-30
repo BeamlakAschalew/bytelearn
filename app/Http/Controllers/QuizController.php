@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateQuizJob;
 use App\Models\Experience;
 use App\Models\Quiz;
 use App\Models\User;
 use Carbon\Carbon;
-use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -31,123 +31,15 @@ class QuizController extends Controller
             'number_of_questions' => 'required|integer|min:1|max:20',
         ]);
 
-        $prompt = sprintf(
-            'Create a %s choice quiz with %d questions about %s. '.
-            'For each question, provide 4 choices and indicate the correct answer. '.
-            'Format the output as a JSON array, where each element is an object '.
-            'representing a question. Each question object should have the following keys: '.
-            "\'question\' (string), \'choices\' (array of 4 strings), and \'correct_answer\' (string, one of the choices).",
+        // Dispatch the job
+        GenerateQuizJob::dispatch(
+            $validated['title'],
             $validated['level'],
             $validated['number_of_questions'],
-            $validated['title']
+            Auth::id()
         );
 
-        try {
-            $geminiResponse = Gemini::generativeModel(model: 'gemini-1.5-flash-latest')->generateContent($prompt);
-            $responseText = $geminiResponse->text();
-
-            $cleanedResponseText = preg_replace('/^```json\s*|\s*```$/', '', $responseText);
-            $cleanedResponseText = preg_replace('/^```\s*|\s*```$/', '', $cleanedResponseText);
-
-            $rawQuestions = json_decode($cleanedResponseText, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE || ! is_array($rawQuestions)) {
-                Log::error('Failed to decode Gemini response or response is not an array.', [
-                    'cleanedResponse' => $cleanedResponseText,
-                    'originalResponse' => $responseText,
-                    'jsonError' => json_last_error_msg(),
-                ]);
-
-                return back()->withErrors(['gemini' => 'Failed to generate quiz questions. Please try again.']);
-            }
-
-            $processedQuestions = [];
-            foreach ($rawQuestions as $index => $question) {
-                if (! isset($question['question']) || ! is_string($question['question'])) {
-                    Log::error('Invalid question text.', ['questionIndex' => $index, 'questionData' => $question]);
-
-                    return back()->withErrors(['gemini' => 'Failed to generate valid quiz questions (invalid question text).']);
-                }
-                if (! isset($question['choices']) || ! is_array($question['choices'])) {
-                    Log::error('Invalid choices format.', ['questionIndex' => $index, 'questionData' => $question]);
-
-                    return back()->withErrors(['gemini' => 'Failed to generate valid quiz questions (invalid choices format).']);
-                }
-                if (! isset($question['correct_answer']) || ! is_string($question['correct_answer'])) {
-                    Log::error('Invalid correct answer format.', ['questionIndex' => $index, 'questionData' => $question]);
-
-                    return back()->withErrors(['gemini' => 'Failed to generate valid quiz questions (invalid correct answer).']);
-                }
-                if (count($question['choices']) !== 4) {
-                    Log::error('Invalid number of choices for a question.', ['questionIndex' => $index, 'response' => $responseText]);
-
-                    return back()->withErrors(['gemini' => 'Quiz questions must have exactly 4 choices.']);
-                }
-                if (! in_array($question['correct_answer'], $question['choices'])) {
-                    Log::error('Correct answer not found in choices.', ['questionIndex' => $index, 'response' => $responseText]);
-
-                    return back()->withErrors(['gemini' => 'An internal error occurred with quiz generation (correct answer mismatch).']);
-                }
-
-                // Generate audio for the question text using Unrealspeech
-                $questionAudioUrl = $this->generateAndStoreAudioUnrealSpeech($question['question']);
-
-                $transformedChoices = [];
-                foreach ($question['choices'] as $choiceText) {
-                    if (! is_string($choiceText)) {
-                        Log::error('Invalid choice text.', ['questionIndex' => $index, 'choice' => $choiceText]);
-
-                        continue;
-                    }
-                    // Generate audio for the choice text using Unrealspeech
-                    $choiceAudioUrl = $this->generateAndStoreAudioUnrealSpeech($choiceText);
-                    $transformedChoices[] = [
-                        'text' => $choiceText,
-                        'audio_url' => $choiceAudioUrl, // Store OutputUri
-                    ];
-                }
-
-                if (count($transformedChoices) !== 4) {
-                    Log::error('Number of choices changed after processing.', ['questionIndex' => $index, 'originalChoicesCount' => count($question['choices']), 'transformedChoicesCount' => count($transformedChoices)]);
-
-                    return back()->withErrors(['gemini' => 'An internal error occurred while processing quiz choices.']);
-                }
-
-                $processedQuestions[] = [
-                    'question' => $question['question'],
-                    'question_audio_url' => $questionAudioUrl, // Store OutputUri
-                    'choices' => $transformedChoices,
-                    'correct_answer' => $question['correct_answer'],
-                ];
-            }
-
-            if (count($processedQuestions) !== (int) $validated['number_of_questions']) {
-                Log::error('Mismatch in number of questions generated vs requested.', [
-                    'requested' => $validated['number_of_questions'],
-                    'generated' => count($processedQuestions),
-                    'rawQuestionsCount' => count($rawQuestions),
-                ]);
-
-                return back()->withErrors(['gemini' => 'Could not generate the exact number of requested questions. Please try again.']);
-            }
-
-            $quiz = Quiz::create([
-                'title' => $validated['title'],
-                'level' => $validated['level'],
-                'number_of_questions' => $validated['number_of_questions'],
-                'questions' => $processedQuestions,
-                'user_id' => Auth::id(),
-            ]);
-
-            return redirect()->route('quizzes.show', $quiz);
-        } catch (\Exception $e) {
-            Log::error('Quiz generation or TTS error: '.$e->getMessage(), [
-                'prompt' => $prompt,
-                'exception_trace' => $e->getTraceAsString(),
-            ]);
-
-            return back()->withErrors(['gemini' => 'Error generating quiz: '.$e->getMessage()]);
-        }
+        return redirect()->route('dashboard')->with('flash', 'Quiz generation started! You will be notified when it is ready.');
     }
 
     /**

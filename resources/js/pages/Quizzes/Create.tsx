@@ -38,6 +38,7 @@ export default function CreateQuiz({ auth, errors: backendErrors }: CreateQuizPr
             },
             onSuccess: () => {
                 // Optionally reset form or navigate, handled by controller redirect
+                // No need to reset here as we are redirecting
             },
         });
     };
@@ -101,7 +102,7 @@ export default function CreateQuiz({ auth, errors: backendErrors }: CreateQuizPr
                             </CardContent>
                             <CardFooter>
                                 <Button type="submit" disabled={processing} className="mt-4">
-                                    {processing ? 'Generating Quiz...' : 'Create Quiz'}
+                                    {processing ? 'Starting Quiz Generation...' : 'Create Quiz'}
                                 </Button>
                             </CardFooter>
                         </form>

@@ -1,9 +1,11 @@
+import CustomToast from '@/components/custom/CustomToast'; // Import CustomToast
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Bot, Lightbulb, ListChecks } from 'lucide-react';
+import { useEffect, useState } from 'react'; // Import useState
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -13,10 +15,25 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Dashboard({ personalizationCount, lastActivity }: { personalizationCount: number; lastActivity: string }) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, flash } = usePage<SharedData>().props;
+    const [showToast, setShowToast] = useState(false);
+
+    useEffect(() => {
+        if (flash) {
+            setShowToast(true);
+        }
+    }, [flash]);
+
+    const handleCloseToast = () => {
+        setShowToast(false);
+        // Optionally, you might want to clear the flash message from session/state here
+        // so it doesn't reappear on a soft refresh if not handled by Inertia's flash mechanism.
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
+            {showToast && flash && <CustomToast message={flash} description="Notification from the server." type="info" onClose={handleCloseToast} />}
             <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
                 <Card>
                     <CardHeader>

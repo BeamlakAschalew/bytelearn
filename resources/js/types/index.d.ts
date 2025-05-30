@@ -25,6 +25,7 @@ export interface NavItem {
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
+    flash: string | null; // Reverted to string | null
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
@@ -35,12 +36,10 @@ export interface User {
     id: number;
     name: string;
     email: string;
-    avatar?: string;
-    email_verified_at: string | null;
+    email_verified_at: string;
     created_at: string;
     updated_at: string;
-    current_streak?: number; // Added for daily streak
-    last_streak_date?: string | null; // Added for daily streak
-    total_experience?: number; // Added for total experience points
-    [key: string]: unknown; // This allows for additional properties...
+    current_streak: number;
+    last_streak_date: string | null;
+    total_experience: number;
 }

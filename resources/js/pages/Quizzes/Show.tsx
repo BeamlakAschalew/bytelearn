@@ -78,6 +78,15 @@ export default function ShowQuiz({ auth, quiz, errors: backendErrors }: ShowQuiz
 
     const currentQuestion = quiz.questions[currentQuestionIndex];
 
+    console.log(currentQuestion);
+
+    const processedChoices: Choice[] = currentQuestion.choices.map((choiceData: any): Choice => {
+        if (typeof choiceData === 'string') {
+            return { text: choiceData, audio_url: null };
+        }
+        return choiceData as Choice;
+    });
+
     return (
         <AppLayout>
             <Head title={quiz.title} />
@@ -106,7 +115,7 @@ export default function ShowQuiz({ auth, quiz, errors: backendErrors }: ShowQuiz
                                     value={data[currentQuestionIndex] || ''}
                                     onValueChange={(value) => handleAnswerChange(currentQuestionIndex, value)}
                                 >
-                                    {currentQuestion.choices.map((choice, choiceIndex) => (
+                                    {processedChoices.map((choice, choiceIndex) => (
                                         <div key={choiceIndex} className="flex items-center space-x-2">
                                             <RadioGroupItem value={choice.text} id={`q${currentQuestionIndex}-choice${choiceIndex}`} />
                                             <Label htmlFor={`q${currentQuestionIndex}-choice${choiceIndex}`} className="flex-1">

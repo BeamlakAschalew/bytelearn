@@ -8,9 +8,13 @@ import { CheckCircle, Flame, Star, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import ReactConfetti from 'react-confetti'; // Renamed import for clarity
 
+interface Choice {
+    text: string;
+    audio_url: string | null;
+}
 interface Question {
     question: string;
-    choices: string[];
+    choices: Choice[]; // Changed from string[] to Choice[]
     correct_answer: string;
 }
 
@@ -76,6 +80,15 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
             return () => clearTimeout(timer);
         }
     }, [percentageScore, quiz.id]);
+
+    const processedChoices: Choice[] = quiz.questions.flatMap((question) =>
+        question.choices.map((choiceData: any): Choice => {
+            if (typeof choiceData === 'string') {
+                return { text: choiceData, audio_url: null };
+            }
+            return choiceData as Choice;
+        }),
+    );
 
     return (
         <AppLayout>
@@ -147,10 +160,11 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
                                         Question {index + 1}: {question.question}
                                     </h3>
                                     <ul className="mb-2 space-y-1">
-                                        {question.choices.map((choice: string, choiceIndex: number) => {
+                                        {question.choices.map((choice: Choice, choiceIndex: number) => {
+                                            // choice is now type Choice
                                             const userAnswer = userAnswers[index];
-                                            const isCorrect = choice === question.correct_answer;
-                                            const isUserChoice = choice === userAnswer;
+                                            const isCorrect = choice.text === question.correct_answer; // Compare choice.text
+                                            const isUserChoice = choice.text === userAnswer; // Compare choice.text
                                             let choiceClass = 'flex items-center p-2 rounded-md ';
 
                                             if (isCorrect) {
@@ -165,7 +179,7 @@ export default function QuizResults({ quiz, score, totalQuestions, experiencePoi
                                                 <li key={choiceIndex} className={choiceClass}>
                                                     {isCorrect && <CheckCircle className="mr-2 h-5 w-5 text-green-500" />}
                                                     {!isCorrect && isUserChoice && <XCircle className="mr-2 h-5 w-5 text-red-500" />}
-                                                    <span className="flex-1">{choice}</span>
+                                                    <span className="flex-1">{choice.text}</span> {/* Render choice.text */}
                                                     {isUserChoice && !isCorrect && <span className="ml-2 text-xs">(Your answer)</span>}
                                                     {isCorrect && !isUserChoice && userAnswer && (
                                                         <span className="ml-2 text-xs text-green-600">(Correct answer)</span>

@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Bot, Lightbulb, ListChecks } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -13,6 +13,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Dashboard({ personalizationCount, lastActivity }: { personalizationCount: number; lastActivity: string }) {
+    const { auth } = usePage<SharedData>().props;
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
@@ -74,12 +75,16 @@ export default function Dashboard({ personalizationCount, lastActivity }: { pers
                             <p className="text-muted-foreground text-xs">Your recent interaction</p>
                         </CardContent>
                     </Card>
-                    {/* <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border md:row-span-2 md:aspect-auto">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                        <div className="absolute inset-0 flex items-center justify-center p-6">
-                            <p className="text-muted-foreground text-center">Future content overview can go here.</p>
-                        </div>
-                    </div> */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total experience points (XP)</CardTitle>
+                            <ListChecks className="text-muted-foreground h-4 w-4" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{auth.user.total_experience}</div>
+                            <p className="text-muted-foreground text-xs">Based on the quizes you participated on</p>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </AppLayout>

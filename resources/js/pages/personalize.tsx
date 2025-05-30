@@ -8,8 +8,8 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import hljs from 'highlight.js';
-import 'highlight.js/styles/github-dark.css'; // Or your preferred theme
-import { LoaderCircle } from 'lucide-react'; // Removed Volume2, Square
+import 'highlight.js/styles/github-dark.css';
+import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -66,30 +66,49 @@ export default function PersonalizeForm() {
 
     const [showResponseArea, setShowResponseArea] = useState(false);
     const [responseContent, setResponseContent] = useState('');
-    const [isStreaming, setIsStreaming] = useState(false); // Will represent overall loading state
+    const [isStreaming, setIsStreaming] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [audioError, setAudioError] = useState<string | null>(null);
+    const [streamGlobalError, setStreamGlobalError] = useState<string | null>(null);
+    const eventSourceRef = useRef<EventSource | null>(null);
 
-    // Effect for cleaning up speech synthesis - REMOVED
+    // Cleanup EventSource on component unmount or when stream ends
+    useEffect(() => {
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+                eventSourceRef.current = null;
+            }
+        };
+    }, []);
 
     const submit: FormEventHandler = async (e) => {
         e.preventDefault();
         if (isStreaming) return;
 
+        // Reset states for new request
         setShowResponseArea(true);
         setResponseContent('');
         setAudioUrl(null);
         setAudioError(null);
+        setStreamGlobalError(null);
         setIsStreaming(true);
+
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close(); // Close any existing connection
+        }
 
         try {
             const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
-            const response = await fetch(route('personalize.store'), {
+
+            // 1. Initiate the stream and get streamId
+            const initiateResponse = await fetch(route('personalize.initiate'), {
+                // Ensure this route is defined
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken || '',
-                    Accept: 'application/json', // Changed from 'text/plain'
+                    Accept: 'application/json',
                 },
                 body: JSON.stringify({
                     topic: data.topic,
@@ -99,43 +118,72 @@ export default function PersonalizeForm() {
                 }),
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Server error: ${response.status} - ${errorText}`);
+            if (!initiateResponse.ok) {
+                const errorText = await initiateResponse.text();
+                throw new Error(`Failed to initiate stream: ${initiateResponse.status} - ${errorText || 'Unknown error'}`);
             }
 
-            const jsonResponse = await response.json();
+            const initiateData = await initiateResponse.json();
+            const streamId = initiateData.streamId;
 
-            if (jsonResponse.textContent) {
-                setResponseContent(jsonResponse.textContent);
-            } else {
-                setResponseContent('No text content received from server.');
+            if (!streamId) {
+                throw new Error('Stream ID not received from server.');
             }
 
-            if (jsonResponse.audioUrl) {
-                setAudioUrl(jsonResponse.audioUrl);
-            }
+            // 2. Connect to the SSE stream
+            // Ensure this route is defined and accepts streamId
+            const es = new EventSource(route('personalize.stream', { streamId }));
+            eventSourceRef.current = es;
 
-            if (jsonResponse.audioError) {
-                setAudioError(jsonResponse.audioError);
-            } else if (jsonResponse.audioUrl && !jsonResponse.audioError && responseContent) {
-                // If we have an audio URL and text content, but no specific audio error, clear any previous generic audio error.
-                setAudioError(null);
-            } else if (!jsonResponse.audioUrl && jsonResponse.textContent) {
-                // If we have text but no audio URL and no specific audio error, set a generic one.
-                setAudioError('Audio could not be generated for this content.');
-            }
+            es.onopen = () => {
+                console.log('SSE connection opened.');
+                // setIsStreaming(true); // Already set
+            };
+
+            es.addEventListener('textChunk', (event) => {
+                const eventData = JSON.parse(event.data);
+                setResponseContent((prev) => prev + eventData.textChunk);
+            });
+
+            es.addEventListener('audioDetails', (event) => {
+                const eventData = JSON.parse(event.data);
+                setAudioUrl(eventData.audioUrl || null);
+                setAudioError(eventData.audioError || null);
+                // Optionally, set full text if there's a concern about chunk accumulation
+                // if (eventData.fullText) setResponseContent(eventData.fullText);
+                console.log('Audio details received:', eventData);
+            });
+
+            es.addEventListener('streamError', (event) => {
+                const eventData = JSON.parse(event.data);
+                console.error('SSE Stream Error:', eventData.error);
+                setStreamGlobalError(eventData.error || 'An error occurred during streaming.');
+                setIsStreaming(false);
+                es.close();
+                eventSourceRef.current = null;
+            });
+
+            es.addEventListener('streamEnd', (event) => {
+                console.log('SSE Stream Ended:', event.data);
+                setIsStreaming(false);
+                es.close();
+                eventSourceRef.current = null;
+            });
+
+            es.onerror = (error) => {
+                console.error('SSE Generic Error:', error);
+                setStreamGlobalError('Connection error or stream interrupted. Please try again.');
+                setIsStreaming(false);
+                es.close();
+                eventSourceRef.current = null;
+            };
         } catch (error) {
-            console.error('Error fetching or processing personalization:', error);
-            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-            setResponseContent(`Error: ${errorMessage}`);
-            setAudioError('Failed to retrieve audio due to a network or server error.');
-        } finally {
+            console.error('Error in submit function:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during setup.';
+            setStreamGlobalError(errorMessage);
             setIsStreaming(false);
         }
     };
-
-    // handleToggleSpeak function - REMOVED
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -148,15 +196,25 @@ export default function PersonalizeForm() {
                                 <CardTitle>Generated Content</CardTitle>
                             </CardHeader>
                             <CardContent className="h-[calc(100%-80px)] overflow-y-auto">
-                                {isStreaming && !responseContent && (
+                                {isStreaming && !responseContent && !streamGlobalError && (
                                     <div className="flex items-center justify-center">
                                         <LoaderCircle className="text-primary h-8 w-8 animate-spin" />
-                                        <p className="text-muted-foreground ml-2">Generating content and audio...</p>
+                                        <p className="text-muted-foreground ml-2">Initiating and generating content...</p>
                                     </div>
                                 )}
-                                {/* TTS Button and Voice Selector START - REMOVED */}
-                                {/* New Audio Player and Error Display START */}
-                                {responseContent && !isStreaming && (
+                                {isStreaming && responseContent && !streamGlobalError && (
+                                    <div className="mb-2 flex items-center justify-center">
+                                        <LoaderCircle className="text-primary h-6 w-6 animate-spin" />
+                                        <p className="text-muted-foreground ml-2">Streaming content... Waiting for audio...</p>
+                                    </div>
+                                )}
+                                {streamGlobalError && (
+                                    <div className="my-4 text-sm text-red-600 dark:text-red-400">
+                                        <p>Error: {streamGlobalError}</p>
+                                    </div>
+                                )}
+
+                                {responseContent && (
                                     <div className="mb-4">
                                         {audioUrl && !audioError && (
                                             <div className="mt-4">
@@ -165,14 +223,13 @@ export default function PersonalizeForm() {
                                                 </audio>
                                             </div>
                                         )}
-                                        {audioError && (
-                                            <div className="mt-2 text-sm text-red-600 dark:text-red-400">
-                                                <p>Audio Error: {audioError}</p>
+                                        {audioError && !streamGlobalError && (
+                                            <div className="mt-2 text-sm text-orange-600 dark:text-orange-400">
+                                                <p>Audio Information: {audioError}</p>
                                             </div>
                                         )}
                                     </div>
                                 )}
-                                {/* New Audio Player and Error Display END */}
                                 <div className="prose dark:prose-invert max-w-none">
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm]}

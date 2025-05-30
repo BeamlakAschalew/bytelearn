@@ -21,6 +21,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('personalize', [PersonalizationController::class, 'store'])->name('personalize.store');
 
+    Route::post('/personalize/initiate', [PersonalizationController::class, 'initiateStore'])->name('personalize.initiate')->middleware(['auth']); // Added auth middleware
+    Route::get('/personalize/stream/{streamId}', [PersonalizationController::class, 'streamResponse'])->name('personalize.stream')->middleware(['auth']);
+
     // Route::post('personalize', function () {
     //     return redirect()->route('ai.result', ['uid' => 'sample-uid']);
     // })->name('personalize.store');

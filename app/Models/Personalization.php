@@ -21,5 +21,6 @@ class Personalization extends Model
         'description',
         'note',
         'content',
+        'audio_file',
     ];
 }

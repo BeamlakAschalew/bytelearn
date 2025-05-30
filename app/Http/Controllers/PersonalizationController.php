@@ -94,7 +94,6 @@ class PersonalizationController extends Controller
 
                         if ($response->successful()) {
                             Log::info('Unrealspeech response: '.$response->body());
-                            // Check if response is JSON with a URL or raw audio
                             $contentType = $response->header('Content-Type');
                             if (str_contains($contentType, 'application/json')) {
                                 Log::info('Unrealspeech returned JSON content.');
@@ -129,7 +128,6 @@ class PersonalizationController extends Controller
                 $generatedText = 'Failed to generate text content.'; // Should not happen if Gemini works
             }
 
-            // Save to database if text was generated
             if (Auth::check() && ! empty($generatedText) && $generatedText !== 'Failed to generate text content.') {
                 Personalization::create([
                     'user_id' => Auth::id(),
@@ -137,7 +135,7 @@ class PersonalizationController extends Controller
                     'description' => 'Generated content for '.$validated['topic'].' at '.$validated['learning_level'].' level.',
                     'note' => $validated['note'] ?? null,
                     'content' => $generatedText,
-                    // 'audio_url' => $audioUrl, // You might want to add an audio_url column to your personalizations table
+                    'audio_file' => $audioUrl,
                 ]);
             }
 
@@ -154,7 +152,7 @@ class PersonalizationController extends Controller
         return response()->json([
             'textContent' => $generatedText,
             'audioUrl' => $audioUrl,
-            'error' => $audioError, // This is for audio-specific errors, null if successful
+            'error' => $audioError,
         ]);
     }
 
